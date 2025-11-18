@@ -6,3 +6,4 @@ export * from './contacts';
 export * from './inboxes';
 export * from './teams';
 export * from './profile';
+export * from './labels';

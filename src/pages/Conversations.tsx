@@ -6,6 +6,18 @@ import { ConversationFiltersComponent } from "@/components/conversations/Convers
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Search,
   Send,
@@ -15,12 +27,23 @@ import {
   CheckCircle2,
   UserPlus,
   Loader2,
-  MessageSquare
+  MessageSquare,
+  Phone,
+  Mail,
+  Clock,
+  Calendar,
+  Hash,
+  RefreshCw,
+  Archive,
+  Ban,
+  Trash2,
+  X,
 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -35,13 +58,33 @@ import {
   ErrorState,
   EmptyState
 } from "@/components/ui/loading-states";
+import { formatDistanceToNow } from "date-fns";
+import { fr } from "date-fns/locale";
 import type { Message, ConversationFilters } from "@/api/types";
+
+// Emoji categories
+const EMOJI_CATEGORIES = {
+  "Smileys": ["😀", "😊", "😂", "🥰", "😎", "🤔", "😅", "😍", "🥺", "😢", "😤", "🤗"],
+  "Gestures": ["👍", "👎", "👋", "🙏", "👏", "🤝", "💪", "✌️", "🤞", "👌", "🙌", "🎉"],
+  "Hearts": ["❤️", "💙", "💚", "💛", "🧡", "💜", "🖤", "💝", "💖", "💗", "💓", "💕"],
+  "Objects": ["📧", "📞", "💻", "📱", "⏰", "📅", "✅", "❌", "⭐", "🔥", "💡", "🎯"],
+};
 
 export default function Conversations() {
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const [messageInput, setMessageInput] = useState("");
   const [filters, setFilters] = useState<ConversationFilters>({ status: 'open' });
+  const [isEmojiOpen, setIsEmojiOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Insert emoji at cursor position
+  const insertEmoji = (emoji: string) => {
+    setMessageInput(prev => prev + emoji);
+    setIsEmojiOpen(false);
+    inputRef.current?.focus();
+  };
 
   // Fetch conversations list
   const {
@@ -311,24 +354,59 @@ export default function Conversations() {
               {/* Input */}
               <div className="p-4 border-t border-border">
                 <div className="flex items-end gap-2">
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="icon">
-                      <Paperclip className="w-5 h-5" />
-                    </Button>
-                    <Button variant="ghost" size="icon">
-                      <Smile className="w-5 h-5" />
-                    </Button>
+                  <div className="flex gap-1">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-9 w-9">
+                          <Paperclip className="w-5 h-5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Joindre un fichier</TooltipContent>
+                    </Tooltip>
+                    <Popover open={isEmojiOpen} onOpenChange={setIsEmojiOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-9 w-9">
+                          <Smile className="w-5 h-5" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 p-3" align="start">
+                        <div className="space-y-3">
+                          {Object.entries(EMOJI_CATEGORIES).map(([category, emojis]) => (
+                            <div key={category}>
+                              <p className="text-xs font-medium text-muted-foreground mb-2">
+                                {category}
+                              </p>
+                              <div className="grid grid-cols-6 gap-1">
+                                {emojis.map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    onClick={() => insertEmoji(emoji)}
+                                    className="p-2 hover:bg-accent rounded-md text-lg transition-colors"
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </div>
-                  <Input
-                    placeholder="Écrivez votre message..."
-                    value={messageInput}
-                    onChange={(e) => setMessageInput(e.target.value)}
-                    onKeyDown={handleKeyPress}
-                    className="flex-1"
-                    disabled={sendMessageMutation.isPending}
-                  />
+                  <div className="flex-1 relative">
+                    <Textarea
+                      ref={inputRef}
+                      placeholder="Écrivez votre message..."
+                      value={messageInput}
+                      onChange={(e) => setMessageInput(e.target.value)}
+                      onKeyDown={handleKeyPress}
+                      className="min-h-[40px] max-h-[120px] resize-none pr-12"
+                      disabled={sendMessageMutation.isPending}
+                      rows={1}
+                    />
+                  </div>
                   <Button
-                    className="bg-primary hover:bg-primary-hover"
+                    className="bg-primary hover:bg-primary-hover h-9"
                     onClick={handleSendMessage}
                     disabled={!messageInput.trim() || sendMessageMutation.isPending}
                   >
@@ -357,71 +435,50 @@ export default function Conversations() {
         {/* Right Column - Contact Details */}
         <div className="w-80 flex flex-col bg-card rounded-lg border border-border card-shadow overflow-y-auto">
           {activeConversation && (
-            <div className="p-6 space-y-6">
+            <div className="p-4 space-y-4">
               {/* Contact Info */}
-              <div className="text-center">
-                <img
-                  src={sender?.thumbnail || `https://api.dicebear.com/7.x/avataaars/svg?seed=${sender?.name || activeConversation.id}`}
-                  alt={sender?.name || 'Contact'}
-                  className="w-20 h-20 rounded-full object-cover mx-auto mb-3"
-                />
-                <h3 className="font-semibold text-lg mb-1">{sender?.name || `Contact #${activeConversation.id}`}</h3>
-                {sender?.email && (
-                  <p className="text-sm text-muted-foreground mb-2">{sender.email}</p>
-                )}
-                {sender?.phoneNumber && (
-                  <p className="text-sm text-muted-foreground">{sender.phoneNumber}</p>
-                )}
+              <div className="text-center pb-4 border-b border-border">
+                <div className="relative inline-block">
+                  <img
+                    src={sender?.thumbnail || `https://api.dicebear.com/7.x/avataaars/svg?seed=${sender?.name || activeConversation.id}`}
+                    alt={sender?.name || 'Contact'}
+                    className="w-16 h-16 rounded-full object-cover mx-auto mb-3 ring-4 ring-primary/10"
+                  />
+                  {sender?.availabilityStatus === 'online' && (
+                    <span className="absolute bottom-3 right-0 w-4 h-4 bg-success border-2 border-card rounded-full" />
+                  )}
+                </div>
+                <h3 className="font-semibold text-base mb-1">{sender?.name || `Contact #${activeConversation.id}`}</h3>
+                <div className="space-y-1">
+                  {sender?.email && (
+                    <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
+                      <Mail className="w-3 h-3" />
+                      {sender.email}
+                    </div>
+                  )}
+                  {sender?.phoneNumber && (
+                    <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
+                      <Phone className="w-3 h-3" />
+                      {sender.phoneNumber}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Labels */}
-              {activeConversation.labels && activeConversation.labels.length > 0 && (
-                <div>
-                  <h4 className="font-semibold text-sm mb-3">Labels</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {activeConversation.labels.map((label) => (
-                      <Badge
-                        key={label}
-                        variant="secondary"
-                        className="px-2 py-1"
-                      >
-                        {label}
-                      </Badge>
-                    ))}
-                    <Button variant="outline" size="sm" className="h-7">
-                      + Ajouter
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Team Assignment */}
-              <div>
-                <h4 className="font-semibold text-sm mb-3">Équipe & Routage</h4>
-                <div className="space-y-2">
-                  {assignee && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Agent assigné</span>
-                      <span className="text-sm font-medium">{assignee.name}</span>
-                    </div>
-                  )}
-                  {activeConversation.meta?.team && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Équipe</span>
-                      <Badge variant="outline">{activeConversation.meta.team.name}</Badge>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Statut</span>
+              {/* Conversation Status */}
+              <div className="pb-4 border-b border-border">
+                <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-3">Statut</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2 bg-accent/50 rounded-lg text-center">
                     <Badge
                       variant="secondary"
-                      className={
+                      className={`text-xs ${
                         activeConversation.status === 'open'
                           ? 'bg-success/20 text-success'
                           : activeConversation.status === 'pending'
                           ? 'bg-warning/20 text-warning'
                           : 'bg-muted text-muted-foreground'
-                      }
+                      }`}
                     >
                       {activeConversation.status === 'open' ? 'Ouvert' :
                        activeConversation.status === 'pending' ? 'En attente' :
@@ -429,32 +486,127 @@ export default function Conversations() {
                        activeConversation.status === 'snoozed' ? 'Mis en pause' : activeConversation.status}
                     </Badge>
                   </div>
-                  {activeConversation.priority && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Priorité</span>
-                      <Badge variant="outline">{activeConversation.priority}</Badge>
+                  <div className="p-2 bg-accent/50 rounded-lg text-center">
+                    <span className="text-xs text-muted-foreground">Non lus</span>
+                    <p className="font-semibold text-sm">{activeConversation.unreadCount || 0}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Labels */}
+              <div className="pb-4 border-b border-border">
+                <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-3">Labels</h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {activeConversation.labels && activeConversation.labels.length > 0 ? (
+                    <>
+                      {activeConversation.labels.map((label) => (
+                        <Badge
+                          key={label}
+                          variant="secondary"
+                          className="px-2 py-0.5 text-xs"
+                        >
+                          {label}
+                        </Badge>
+                      ))}
+                    </>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Aucun label</span>
+                  )}
+                  <Button variant="ghost" size="sm" className="h-6 text-xs px-2">
+                    + Ajouter
+                  </Button>
+                </div>
+              </div>
+
+              {/* Assignment */}
+              <div className="pb-4 border-b border-border">
+                <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-3">Assignation</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <UserPlus className="w-3 h-3" />
+                      Agent
+                    </span>
+                    {assignee ? (
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={assignee.thumbnail || `https://api.dicebear.com/7.x/avataaars/svg?seed=${assignee.name}`}
+                          alt={assignee.name}
+                          className="w-5 h-5 rounded-full"
+                        />
+                        <span className="text-xs font-medium">{assignee.name}</span>
+                      </div>
+                    ) : (
+                      <Badge variant="outline" className="text-xs">Non assigné</Badge>
+                    )}
+                  </div>
+                  {activeConversation.meta?.team && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Équipe</span>
+                      <Badge variant="outline" className="text-xs">{activeConversation.meta.team.name}</Badge>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Activity */}
-              <div>
-                <h4 className="font-semibold text-sm mb-3">Informations</h4>
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Messages non lus</span>
-                    <span className="font-medium">{activeConversation.unreadCount}</span>
+              {/* Details */}
+              <div className="pb-4 border-b border-border">
+                <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-3">Détails</h4>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Hash className="w-3 h-3" />
+                      ID Conversation
+                    </span>
+                    <span className="font-mono">{activeConversation.id}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Inbox ID</span>
-                    <span className="font-medium">{activeConversation.inboxId}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Hash className="w-3 h-3" />
+                      ID Inbox
+                    </span>
+                    <span className="font-mono">{activeConversation.inboxId}</span>
                   </div>
                   {activeConversation.meta?.channel && (
-                    <div className="flex justify-between">
+                    <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Canal</span>
-                      <span className="font-medium capitalize">
+                      <Badge variant="outline" className="text-xs capitalize">
                         {activeConversation.meta.channel.replace('Channel::', '')}
+                      </Badge>
+                    </div>
+                  )}
+                  {activeConversation.priority && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Priorité</span>
+                      <Badge variant="outline" className="text-xs">{activeConversation.priority}</Badge>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Activity Timeline */}
+              <div>
+                <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-3">Activité</h4>
+                <div className="space-y-2 text-xs">
+                  {activeConversation.createdAt && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        Créé
+                      </span>
+                      <span>
+                        {formatDistanceToNow(new Date(activeConversation.createdAt * 1000), { locale: fr, addSuffix: true })}
+                      </span>
+                    </div>
+                  )}
+                  {activeConversation.lastActivityAt && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        Dernière activité
+                      </span>
+                      <span>
+                        {formatDistanceToNow(new Date(activeConversation.lastActivityAt * 1000), { locale: fr, addSuffix: true })}
                       </span>
                     </div>
                   )}
