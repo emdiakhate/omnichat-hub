@@ -1,7 +1,7 @@
 // Script de test pour l'API Chatwoot
 const BASE_URL = 'https://chathub.srv837294.hstgr.cloud';
-const API_TOKEN = '5NEWoBX3DbYETbPM2YSTSy3Y';
-const ACCOUNT_ID = '2';
+const API_TOKEN = 'MxR7hTQrpjZFsvWQGYv6TA1t';
+const ACCOUNT_ID = '1';
 
 async function testApi(endpoint, description) {
   console.log(`\n📋 ${description}`);
