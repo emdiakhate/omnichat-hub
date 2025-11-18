@@ -9,8 +9,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { WebSocketIndicator } from "@/components/ui/websocket-indicator";
+import { useWebSocket } from "@/providers/WebSocketProvider";
 
 export const Header = () => {
+  const { isConnected } = useWebSocket();
+
   return (
     <header className="fixed top-0 right-0 left-60 h-16 border-b border-border bg-card/80 backdrop-blur-sm z-10">
       <div className="h-full px-6 flex items-center justify-between gap-4">
@@ -28,6 +32,9 @@ export const Header = () => {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          {/* WebSocket Status */}
+          <WebSocketIndicator isConnected={isConnected} />
+
           {/* Notifications */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
